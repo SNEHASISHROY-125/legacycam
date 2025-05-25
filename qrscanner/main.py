@@ -11,16 +11,71 @@ from kivy.metrics import dp
 import os , datetime
 
 # 
-# global change_img_callback
-global pic_click 
-global pic
-pic_click = False
-# change_img_callback = None
+try: 
+    from pyzbar.pyzbar import decode
+    from PIL import Image
+except ImportError:
+    print("pyzbar or PIL not installed. QR code decoding will not work.")
+    decode = None
+    Image = None
 # 
 
+
+__all__ = ("toast",)
+
+from kivy import platform
+
+if platform != "android":
+    raise TypeError(
+        f"{platform.capitalize()} platform does not support Android Toast"
+    )
+
+from android.runnable import run_on_ui_thread
+from jnius import autoclass
+
+activity = autoclass("org.kivy.android.PythonActivity").mActivity
+Toast = autoclass("android.widget.Toast")
+String = autoclass("java.lang.String")
+
+@run_on_ui_thread
+def toast(text, length_long=False, gravity=0, y=0, x=0):
+    """
+    Displays a toast.
+
+    :param length_long: the amount of time (in seconds) that the toast is
+           visible on the screen;
+    :param text: text to be displayed in the toast;
+    :param short_duration:  duration of the toast, if `True` the toast
+           will last 2.3s but if it is `False` the toast will last 3.9s;
+    :param gravity: refers to the toast position, if it is 80 the toast will
+           be shown below, if it is 40 the toast will be displayed above;
+    :param y: refers to the vertical position of the toast;
+    :param x: refers to the horizontal position of the toast;
+
+    Important: if only the text value is specified and the value of
+    the `gravity`, `y`, `x` parameters is not specified, their values will
+    be 0 which means that the toast will be shown in the center.
+    """
+
+    duration = Toast.LENGTH_SHORT if length_long else Toast.LENGTH_LONG
+    t = Toast.makeText(activity, String(text), duration)
+    t.setGravity(gravity, x, y)
+    t.show()
+
+
+
 class PreviewCallback(PythonJavaClass):
+    """
+    Callback class to handle camera preview frames and save them as images.
+    This class implements the `android.hardware.Camera.PreviewCallback` interface.
+    *kivy_image_callback*
+
+    *returns*
+    - ``saved image path``
+    """
     __javainterfaces__ = ['android/hardware/Camera$PreviewCallback']
     __javacontext__ = 'app'
+    take_picture = False
 
     def __init__(self ,kivy_image_callback):
         super().__init__()
@@ -28,10 +83,16 @@ class PreviewCallback(PythonJavaClass):
 
     @java_method('([BLandroid/hardware/Camera;)V')
     def onPreviewFrame(self, data, camera):
-        global pic_click
-        if not pic_click:
+        # global pic_click
+        if not self.take_picture:
             return
-        pic_click = False
+        self.take_picture = False
+
+        print("take picture" , self.take_picture)
+
+        # check for cache/ exists
+        if not os.path.exists("cache"): os.makedirs("cache", exist_ok=True)
+        pic = os.path.join("cache", str(datetime.datetime.now()) + ".jpg")
 
         # Convert YUV to JPEG and save image
         YuvImage = autoclass('android.graphics.YuvImage')
@@ -59,11 +120,12 @@ class PreviewCallback(PythonJavaClass):
         fos.close()
         print("captured frame")
         # change kivy image
-        self.kivy_image_callback()
+        self.kivy_image_callback(pic)
 
 class AddPreviewRunnable(PythonJavaClass):
     __javainterfaces__ = ['java/lang/Runnable']
     __javacontext__ = 'app'
+    preview_callback = None
 
     def __init__(self, activity ,kivy_image_callback):
         super().__init__()
@@ -79,7 +141,7 @@ class AddPreviewRunnable(PythonJavaClass):
 
         # # Create a preview view
         # preview = PreviewView(self.activity)
-        # layout_params = FrameLayoutParams(-1, -1)  # MATCH_PARENT int(self.activity.getResources().getDisplayMetrics().heightPixels * 0.6)
+        # layout_params = FrameLayoutParams(-1, -1)  # MATCH_PARENT int(self.activity.getResources().getDisplayMetrics().heightPixels * 0.6) ## 60% height and top top
 
         # # Add to root layout
         # self.activity.addContentView(preview, layout_params)
@@ -125,57 +187,35 @@ class AddPreviewRunnable(PythonJavaClass):
 
 
 class LiveCameraApp(App):
-    # def build(self):
-    #     request_permissions([Permission.CAMERA])
-    #     self.layout = BoxLayout(orientation='vertical')
-
-    #     btn = Button(text='Start Camera Preview')
-    #     btn.size_hint = (.4 , .8)
-    #     # btn.size = (200, 50)
-    #     btn.pos_hint = {'center_x': 0.5, 'center_y': 0.9}
-    #     btn.bind(on_press=self.start_preview)
-
-    #     self.layout.add_widget(btn)
-    #     return self.layout
-
-    # def start_preview(self, instance):
-    #     PythonActivity = autoclass('org.kivy.android.PythonActivity')
-    #     activity = PythonActivity.mActivity
-
-    #     # Add preview view using a Runnable
-    #     preview_runnable = AddPreviewRunnable(activity)
-    #     activity.runOnUiThread(preview_runnable)
-
-    #     # Optional: disable the button to prevent adding multiple previews
-    #     # instance.disabled = True
     img = None
     source = StringProperty("https://media.istockphoto.com/id/1307609675/photo/bluebird.jpg?s=612x612&w=0&k=20&c=PdSeFBXLNi2n8vNxDjubRQOsaOw_sJ1w7RhtxjGL5GM=")
+    ## PreviewClass
+    preview_runnable = None
+    recycle_items = []
+
+
     def build(self):
         request_permissions([Permission.CAMERA])
         self.layout = FloatLayout()
 
-        btn = Button(text='Start Camera')
+        btn = Button(text='Start QR Scanner')
         btn.size_hint = None, None
         btn.size = (dp(200), dp(50))
         # btn.size = (200, 50)
-        btn.pos_hint = {'center_x': 0.3, 'top': 0.98}
+        btn.pos_hint = {'center_x': 0.5, 'center_y': 0.5}
         # btn.bind(on_press=self.start_preview)
-        btn.bind(on_press=self.take_picture)
+        btn.bind(on_press=self.launch_camera)
 
         self.img = AsyncImage(source=self.source)
         self.img.size_hint = None, None
         self.img.size = (dp(200), dp(70))
-        self.img.pos_hint = {'center_x': 0.6, 'top': 0.99}
+        self.img.pos_hint = {'center_x': 0.5, 'top': 0.99}
 
         self.layout.add_widget(btn)
         self.layout.add_widget(self.img)
         return self.layout
     
-    def on_start(self):
-        # Check if the camera permission is granted
-        if check_permission(Permission.CAMERA):
-            ## Necessery for the camera to work | requires a delay to init the classes
-            Clock.schedule_once(lambda dt: self.start_preview(None), 2)
+    def on_start(self): ...
 
     def on_resume(self):
         ## Camera disapprears when the app is paused | relaunch the camera on resume
@@ -183,22 +223,15 @@ class LiveCameraApp(App):
         return True
     
     @mainthread
-    def change_img(self):
-        Clock.schedule_once(lambda dt: setattr(self.img, "source", pic), .5)
-        print("Image changed to: ", pic)
+    def change_img(self , path):
+        Clock.schedule_once(lambda dt: setattr(self.img, "source", path), .5)
+        print("Image changed to: ", path)
 
-    def take_picture(self , instance):
-        global pic_click
-        global pic
-        pic = str(datetime.datetime.now()) + ".jpg"
-        pic_click = True
-        #
-        print(self.img.source , "\n" ,self.img)
-        ## test pyzbar
+        [os.remove(image) for image in self.recycle_items if os.path.exists(image)]
+        self.recycle_items.clear()
+
         try:
-            from pyzbar.pyzbar import decode
-            from PIL import Image
-            with Image.open(pic) as img:
+            with Image.open(path) as img:
                 # Convert the image to grayscale
                 img = img.convert("L")
 
@@ -208,17 +241,41 @@ class LiveCameraApp(App):
             # Print the results
             for obj in decoded_objects:
                 print(f"Decoded QR code: {obj.data.decode('utf-8')}")
+                toast(obj.data.decode('utf-8'))
 
         except Exception as e:
             print("Error decoding QR code:", e)
+        finally:
+            self.recycle_items.append(path)
+    
+    def scan(self,instance): 
+      try:
+        if self.preview_runnable : setattr(self.preview_runnable.preview_callback , "take_picture", True)
+        else: print("self.preview_runnable is " , self.preview_runnable)
+      except Exception as e: print(e)
+
+    def launch_camera(self , instance):
+        # This method is called to start the camera preview
+        if self.preview_runnable is None and check_permission(Permission.CAMERA):
+            print("Starting camera preview...")
+            PythonActivity = autoclass('org.kivy.android.PythonActivity')
+            activity = PythonActivity.mActivity
+            self.preview_runnable = AddPreviewRunnable(activity, self.change_img)
+            activity.runOnUiThread(self.preview_runnable)
+            # start qr scan
+            Clock.schedule_interval(lambda dt: self.scan(None), 0.7)
+        else:
+            print("Camera permission not granted or preview already running.")
+            request_permissions([Permission.CAMERA])
 
     def start_preview(self, instance):
         PythonActivity = autoclass('org.kivy.android.PythonActivity')
         activity = PythonActivity.mActivity
 
         # Add preview view using a Runnable
-        preview_runnable = AddPreviewRunnable(activity, self.change_img)
-        activity.runOnUiThread(preview_runnable)
+        self.preview_runnable = AddPreviewRunnable(activity, self.change_img)
+        activity.runOnUiThread(self.preview_runnable)
+
 
 
 if __name__ == "__main__":

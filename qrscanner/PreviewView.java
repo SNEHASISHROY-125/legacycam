@@ -33,13 +33,12 @@ public class PreviewView extends SurfaceView implements SurfaceHolder.Callback {
 
             // Set high resolution if available
             List<Camera.Size> sizes = params.getSupportedPreviewSizes();
-            Camera.Size largest = sizes.get(0);
             for (Camera.Size size : sizes) {
-                if (size.width * size.height > largest.width * largest.height) {
-                    largest = size;
+                if (size.width == 1280 && size.height == 720) {
+                    params.setPreviewSize(size.width, size.height);
+                    break;
                 }
             }
-            params.setPreviewSize(largest.width, largest.height);
             // ✅ Set autofocus mode to continuous picture
             List<String> focusModes = params.getSupportedFocusModes();
             if (focusModes != null && focusModes.contains(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE)) {
