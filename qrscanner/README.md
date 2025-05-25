@@ -2,6 +2,8 @@
 
 LBarCam is a QR and barcode scanner app for Android, built with [Kivy](https://kivy.org/) and using the legacy Android Camera API. It provides a simple interface to scan QR codes and barcodes using your device's camera, leveraging Python and Java integration via Pyjnius.
 
+![6167837306849969573](https://github.com/user-attachments/assets/2f47c720-326f-4cda-9d39-e07aff7cfe77)
+
 ## Features
 
 - **Live Camera Preview:** Uses the legacy Android Camera API for compatibility with a wide range of devices.
