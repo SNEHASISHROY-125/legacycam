@@ -68,4 +68,43 @@ public class PreviewView extends SurfaceView implements SurfaceHolder.Callback {
           mCamera = null;
       }
     }
+
+    public void stopCamera() {
+    if (mCamera != null) {
+        try {
+            mCamera.setPreviewCallback(null);  // stop receiving frames
+            mCamera.stopPreview();             // stop the preview
+            mCamera.release();                 // release the hardware
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            mCamera = null;
+        }
+    }
+  }
+
+    public void stopAndRemove() {
+    stopCamera(); // custom method you already defined
+
+    if (getParent() instanceof android.view.ViewGroup) {
+        android.view.ViewGroup parent = (android.view.ViewGroup) getParent();
+        parent.removeView(this); // This removes the PreviewView from screen
+    }
+  }
+
+  public void setFlashlight(boolean enable) {
+    if (mCamera != null) {
+        try {
+            Camera.Parameters params = mCamera.getParameters();
+            if (enable) {
+                params.setFlashMode(Camera.Parameters.FLASH_MODE_TORCH); // Continuous on
+            } else {
+                params.setFlashMode(Camera.Parameters.FLASH_MODE_OFF);
+            }
+            mCamera.setParameters(params);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+  }
 }
