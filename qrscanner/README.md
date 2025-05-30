@@ -26,7 +26,7 @@ LBarCam is a QR and barcode scanner app for Android, built with [Kivy](https://k
 Before running or building the app, install the following system dependency (see [issue #54](https://github.com/kivy-garden/zbarcam/issues/54)):
 
 ```sh
-sudo apt-get install gettext
+!sudo apt-get install gettext
 ```
 
 ## Setup & Usage
@@ -34,10 +34,10 @@ sudo apt-get install gettext
 1. **Install Buildozer:**
 
    ```sh
-   pip install buildozer
-   sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
-   pip install cython==0.29.33
-   sudo apt-get install -y \
+   !pip install buildozer
+   !sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
+   !pip install cython==0.29.33
+   !sudo apt-get install -y \
     python3-pip \
     build-essential \
     git \
@@ -53,12 +53,12 @@ sudo apt-get install gettext
     libavformat-dev \
     libavcodec-dev \
     zlib1g-dev
-    sudo apt-get install -y \
+   !sudo apt-get install -y \
     libgstreamer1.0 \
     gstreamer1.0-plugins-base \
     gstreamer1.0-plugins-good
-    sudo apt-get install build-essential libsqlite3-dev sqlite3 bzip2 libbz2-dev zlib1g-dev libssl-dev openssl libgdbm-dev libgdbm-compat-dev liblzma-dev libreadline-dev libncursesw5-dev libffi-dev uuid-dev libffi7
-    sudo apt-get install libffi-dev
+   !sudo apt-get install build-essential libsqlite3-dev sqlite3 bzip2 libbz2-dev zlib1g-dev libssl-dev openssl libgdbm-dev libgdbm-compat-dev liblzma-dev libreadline-dev libncursesw5-dev libffi-dev uuid-dev libffi7
+   !sudo apt-get install libffi-dev
    ```
 
 
