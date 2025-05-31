@@ -29,7 +29,7 @@ Before running or building the app, install the following system dependency (see
 !sudo apt-get install gettext
 ```
 
-## Setup & Usage
+## Setup
 
 1. **Install Buildozer:**
 
@@ -79,6 +79,42 @@ Before running or building the app, install the following system dependency (see
    buildozer android deploy run
    ```
 
+## How to Use
+
+1. **Import LegacyScanner:**
+
+```sh
+from lbarcam.LbarCam import LegacyScanner
+```
+
+2. **Construct the Scanner:**
+
+```sh
+self.scanner = LegacyScanner(self.change_img, recycle_frames=True)
+```
+
+3. **Relaunch camera preview ``on_pause`` as it disapprears when the app is paused**
+
+```sh
+self.scanner.start_preview()
+```
+
+4. **Start Camera Preview and ``scheduled`` Scanning**
+
+```sh
+if not self.schedule_scan:
+   self.scanner.start_preview()
+   self.schedule_scan = Clock.schedule_interval(lambda dt: self.scanner.scan(), 0.7)
+```
+
+5. **Stop Camera Preview and ``Unschedule`` Scanning**
+```sh
+if self.schedule_scan:
+   Clock.unschedule(self.schedule_scan)
+   self.schedule_scan = None
+
+self.scanner.stop_preview()
+```
 
 ## Notes
 
